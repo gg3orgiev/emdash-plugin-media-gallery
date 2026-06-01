@@ -1,0 +1,81 @@
+{
+  "name": "emdash-plugin-media-gallery",
+  "version": "0.1.0",
+  "description": "A multi-image gallery field for EmDash CMS: ordered media arrays with per-item metadata, a primary flag, and media search.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Georgi Georgiev (https://github.com/gg3orgiev)",
+  "homepage": "https://github.com/gg3orgiev/emdash-plugin-media-gallery#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gg3orgiev/emdash-plugin-media-gallery.git"
+  },
+  "bugs": {
+    "url": "https://github.com/gg3orgiev/emdash-plugin-media-gallery/issues"
+  },
+  "keywords": [
+    "emdash",
+    "emdash-plugin",
+    "cms",
+    "gallery",
+    "media",
+    "images",
+    "field",
+    "widget",
+    "astro"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md",
+    "SECURITY.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/plugin.d.ts",
+      "import": "./dist/plugin.mjs"
+    },
+    "./runtime": {
+      "types": "./dist/runtime.d.ts",
+      "import": "./dist/runtime.mjs"
+    },
+    "./admin": {
+      "types": "./dist/admin.d.ts",
+      "import": "./dist/admin.mjs"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepack": "npm run build"
+  },
+  "peerDependencies": {
+    "emdash": ">=0.14.0",
+    "@emdash-cms/admin": ">=0.14.0",
+    "react": "^18 || ^19"
+  },
+  "peerDependenciesMeta": {
+    "@emdash-cms/admin": { "optional": true },
+    "react": { "optional": true }
+  },
+  "devDependencies": {
+    "@emdash-cms/admin": "^0.16.0",
+    "@types/react": "^19.0.0",
+    "emdash": "^0.16.0",
+    "react": "^19.0.0",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
