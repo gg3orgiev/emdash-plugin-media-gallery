@@ -11,14 +11,7 @@ which the built-in picker lacks.
 - Requires: EmDash `>= 0.14.0`
 - Runtime dependencies: none (EmDash and React are peer dependencies)
 
-```
-Gallery
-+------+ +------+ +------+ +------+
-|  ::  | |  ::  | |  ::  | |  ::  |  [ + Add ]
-|  1   | |  2   | |  3   | |  4   |
-+------+ +------+ +------+ +------+
-[Front ] [Side  ] [3/4   ] [Detail]   (drag to reorder)
-```
+![Media Gallery widget in the EmDash admin](./media-gallery-overview.png)
 
 ## Why it works this way
 
