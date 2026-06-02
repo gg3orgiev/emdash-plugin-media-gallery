@@ -1,21 +1,9 @@
-/**
- * The gallery editing widget (admin UI).
- *
- * Add images via search (host endpoint) or the EmDash media picker, and remove
- * them. Reordering, the primary toggle, and per-item alt text arrive in Phase 2.
- *
- * EmDash renders this component for a `json` field whose `widget` is
- * `"media-gallery:gallery"`, passing the props below. It is controlled: we read
- * `value` and report edits through `onChange`. The editor autosaves.
- */
-
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { MediaPickerModal } from "@emdash-cms/admin";
 import { type GalleryItem, reindex, resolveOptions } from "../schema.js";
 import { validateGallery } from "../validate.js";
 import { SearchPicker, urlFromStorageKey } from "./shared.js";
 
-/** Minimal shape needed to add an item — satisfied by both a MediaItem and a search result. */
 interface MediaPick {
   id: string;
   storageKey?: string;
@@ -24,7 +12,6 @@ interface MediaPick {
   url?: string;
 }
 
-/** Props EmDash passes to a plugin field widget (verified against the admin bundle). */
 export interface FieldWidgetProps {
   value: unknown;
   onChange: (value: unknown) => void;
@@ -39,20 +26,18 @@ export default function GalleryField(props: FieldWidgetProps) {
   const { value, onChange, label, id, required } = props;
   const options = useMemo(() => resolveOptions(props.options), [props.options]);
 
-  // Derive the current items straight from the controlled value.
   const items = useMemo<GalleryItem[]>(
     () => reindex(validateGallery(value, { ...options, maxItems: Number.MAX_SAFE_INTEGER, minItems: 0 }).items),
     [value, options],
   );
 
-  // Map of mediaId → thumbnail URL, filled in for older items (mediaId only) by
-  // querying the media-by-id endpoint. Items with a storageKey skip this.
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const atLimit = items.length >= options.maxItems;
 
-  // Resolve thumbnails for items that have neither a storageKey nor a known URL.
   useEffect(() => {
     const missing = items.filter((it) => !it.storageKey && !urls[it.mediaId]);
     if (missing.length === 0) return;
@@ -80,10 +65,10 @@ export default function GalleryField(props: FieldWidgetProps) {
   }, [items, urls]);
 
   function commit(next: GalleryItem[]) {
-    onChange(reindex(ensurePrimary(next)));
+    // Assign sortOrder from array position (not reindex, which re-sorts by old sortOrder).
+    onChange(ensurePrimary(next).map((it, i) => ({ ...it, sortOrder: i })));
   }
 
-  /** Append a media item (from the picker or a search result). Ignores duplicates. */
   function addMedia(picked: MediaPick) {
     if (items.some((it) => it.mediaId === picked.id)) return;
     const url = picked.url ?? (picked.storageKey ? urlFromStorageKey(picked.storageKey) : null);
@@ -94,7 +79,6 @@ export default function GalleryField(props: FieldWidgetProps) {
       isPrimary: items.length === 0,
       meta: {},
     };
-    // Denormalize render hints so thumbnails survive reload without a lookup.
     if (picked.storageKey) item.storageKey = picked.storageKey;
     if (typeof picked.width === "number") item.width = picked.width;
     if (typeof picked.height === "number") item.height = picked.height;
@@ -104,6 +88,49 @@ export default function GalleryField(props: FieldWidgetProps) {
   function removeImage(mediaId: string) {
     commit(items.filter((it) => it.mediaId !== mediaId));
   }
+
+  function updateMeta(mediaId: string, key: string, val: string) {
+    commit(items.map((it) => it.mediaId === mediaId ? { ...it, meta: { ...it.meta, [key]: val } } : it));
+  }
+
+  // --- Drag-to-reorder (HTML5 Drag API, zero dependencies) ---
+
+  const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
+    setDragIndex(index);
+    e.dataTransfer.effectAllowed = "move";
+    // Needed for Firefox to initiate drag
+    e.dataTransfer.setData("text/plain", String(index));
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverIndex(index);
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent, targetIndex: number) => {
+      e.preventDefault();
+      setDragOverIndex(null);
+      if (dragIndex === null || dragIndex === targetIndex) {
+        setDragIndex(null);
+        return;
+      }
+      const next = [...items];
+      const [moved] = next.splice(dragIndex, 1);
+      next.splice(targetIndex, 0, moved!);
+      commit(next);
+      setDragIndex(null);
+    },
+    [dragIndex, items],
+  );
+
+  const handleDragEnd = useCallback(() => {
+    setDragIndex(null);
+    setDragOverIndex(null);
+  }, []);
+
+  const hasPerItemFields = options.perItemFields.length > 0;
 
   return (
     <div data-field={id}>
@@ -124,18 +151,45 @@ export default function GalleryField(props: FieldWidgetProps) {
         </button>
       ) : (
         <div style={styles.grid}>
-          {items.map((item) => {
+          {items.map((item, index) => {
             const url = item.storageKey ? urlFromStorageKey(item.storageKey) : urls[item.mediaId] ?? null;
+            const isDragging = dragIndex === index;
+            const isOver = dragOverIndex === index && dragIndex !== index;
             return (
-              <div key={item.mediaId} style={styles.card}>
+              <div
+                key={item.mediaId}
+                style={{
+                  ...styles.card,
+                  ...(hasPerItemFields ? styles.cardWide : undefined),
+                  opacity: isDragging ? 0.4 : 1,
+                  ...(isOver ? styles.dropTarget : undefined),
+                }}
+                draggable
+                onDragStart={(e) => handleDragStart(e, index)}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDrop={(e) => handleDrop(e, index)}
+                onDragEnd={handleDragEnd}
+              >
                 <div style={styles.thumb}>
                   {url ? (
-                    <img src={url} alt={item.meta.alt_en ?? ""} style={styles.img} loading="lazy" />
+                    <img src={url} alt={item.meta.alt_en ?? item.meta.alt ?? ""} style={styles.img} loading="lazy" />
                   ) : (
                     <span style={styles.placeholder}>{shortId(item.mediaId)}</span>
                   )}
                   {item.isPrimary ? <span style={styles.badge}>primary</span> : null}
+                  <span style={styles.dragHandle} title="Drag to reorder">&#x2630;</span>
                 </div>
+                {options.perItemFields.map((field) => (
+                  <input
+                    key={field}
+                    type="text"
+                    value={item.meta[field] ?? ""}
+                    onChange={(e) => updateMeta(item.mediaId, field, e.target.value)}
+                    placeholder={field}
+                    style={styles.metaInput}
+                    aria-label={`${field} for image ${shortId(item.mediaId)}`}
+                  />
+                ))}
                 <button
                   type="button"
                   style={styles.remove}
@@ -177,7 +231,6 @@ export default function GalleryField(props: FieldWidgetProps) {
   );
 }
 
-/** Guarantee exactly one primary: if none is set, the first item becomes primary. */
 function ensurePrimary(items: GalleryItem[]): GalleryItem[] {
   if (items.length === 0) return items;
   if (items.some((it) => it.isPrimary)) return items;
@@ -194,11 +247,12 @@ const styles: Record<string, React.CSSProperties> = {
   required: { color: "#c0392b" },
   count: { fontSize: 12, opacity: 0.6 },
   grid: { display: "flex", flexWrap: "wrap", gap: 12 },
-  card: { width: 120, display: "flex", flexDirection: "column", gap: 4 },
+  card: { width: 120, display: "flex", flexDirection: "column", gap: 4, cursor: "grab", transition: "opacity 150ms" },
+  cardWide: { width: 160 },
   thumb: {
     position: "relative",
-    width: 120,
-    height: 90,
+    width: "100%",
+    aspectRatio: "4/3",
     border: "1px solid rgba(0,0,0,0.15)",
     borderRadius: 4,
     overflow: "hidden",
@@ -218,6 +272,32 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 3,
     background: "rgba(0,0,0,0.7)",
     color: "#fff",
+  },
+  dragHandle: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    fontSize: 14,
+    lineHeight: "1",
+    padding: "2px 4px",
+    borderRadius: 3,
+    background: "rgba(0,0,0,0.5)",
+    color: "#fff",
+    cursor: "grab",
+    userSelect: "none",
+  },
+  dropTarget: {
+    outline: "2px dashed #3b82f6",
+    outlineOffset: 2,
+    borderRadius: 4,
+  },
+  metaInput: {
+    width: "100%",
+    padding: "3px 6px",
+    border: "1px solid rgba(0,0,0,0.15)",
+    borderRadius: 3,
+    fontSize: 12,
+    boxSizing: "border-box",
   },
   remove: { fontSize: 12, cursor: "pointer" },
   add: {

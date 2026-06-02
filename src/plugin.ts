@@ -12,7 +12,7 @@ import { createGalleryBeforeSave } from "./hook.js";
 import { IMAGE_WIDGET_NAME, PLUGIN_ID, WIDGET_NAME } from "./schema.js";
 
 /** Package version; kept in one place for the manifest and the descriptor. */
-export const VERSION = "0.1.0";
+export const VERSION = "0.2.0";
 
 /** The module specifier the host imports to load this plugin's definition. */
 const ENTRYPOINT = "emdash-plugin-media-gallery";

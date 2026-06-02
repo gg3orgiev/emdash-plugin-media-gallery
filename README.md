@@ -14,9 +14,10 @@ which the built-in picker lacks.
 ```
 Gallery
 +------+ +------+ +------+ +------+
-|  1   | |  2   | |  3   | |  4   |  [ + Add ]
+|  ::  | |  ::  | |  ::  | |  ::  |  [ + Add ]
+|  1   | |  2   | |  3   | |  4   |
 +------+ +------+ +------+ +------+
- Front    Side     3/4      Detail
+[Front ] [Side  ] [3/4   ] [Detail]   (drag to reorder)
 ```
 
 ## Why it works this way
@@ -155,10 +156,9 @@ To report a vulnerability, see [SECURITY.md](./SECURITY.md).
 
 ## Status
 
-In production use. Implemented: gallery and single-image widgets, search, server-side
-validation, and storefront hydration. Planned: drag-to-reorder, per-item alt-text inputs, and a
-primary-toggle control in the gallery widget (the data model and runtime already support
-`sortOrder`, `isPrimary`, and `meta`). See [CHANGELOG.md](./CHANGELOG.md).
+In production use. Implemented: gallery and single-image widgets, drag-to-reorder, per-item
+alt-text inputs, search, server-side validation, and storefront hydration. Planned: a
+primary-toggle control in the gallery widget. See [CHANGELOG.md](./CHANGELOG.md).
 
 ## Contributing
 

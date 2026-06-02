@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_OPTIONS, resolveOptions, toRawArray, reindex, isSafeStorageKey, mediaProxyUrl } from "../src/schema.js";
+import { type GalleryItem, DEFAULT_OPTIONS, resolveOptions, toRawArray, reindex, isSafeStorageKey, mediaProxyUrl } from "../src/schema.js";
 import { collectMediaIds, looksLikeGallery, validateGallery } from "../src/validate.js";
 import { hydrateMediaGallery, primaryImage, type MediaRow } from "../src/runtime.js";
 
@@ -101,6 +101,105 @@ describe("hydrateMediaGallery", () => {
   it("returns [] for empty values", async () => {
     expect(await hydrateMediaGallery(null, lookup)).toEqual([]);
     expect(await hydrateMediaGallery("[]", lookup)).toEqual([]);
+  });
+});
+
+describe("per-item meta (alt text)", () => {
+  it("preserves meta fields through validation and reindex", () => {
+    const value = [
+      { mediaId: "m1", sortOrder: 0, isPrimary: true, meta: { alt_en: "Front view", alt_bg: "Отпред" } },
+      { mediaId: "m2", sortOrder: 1, isPrimary: false, meta: { alt_en: "Side view" } },
+    ];
+    const res = validateGallery(value, opts);
+    expect(res.ok).toBe(true);
+    expect(res.items[0]!.meta).toEqual({ alt_en: "Front view", alt_bg: "Отпред" });
+    expect(res.items[1]!.meta).toEqual({ alt_en: "Side view" });
+  });
+
+  it("hydrate picks item meta alt over row alt", async () => {
+    const rows = new Map<string, MediaRow>([
+      ["m1", { id: "m1", storage_key: "products/1.jpg", alt: "row alt" }],
+    ]);
+    const lookup = async (ids: string[]) =>
+      new Map(ids.filter((id) => rows.has(id)).map((id) => [id, rows.get(id)!]));
+    const out = await hydrateMediaGallery(
+      [{ mediaId: "m1", sortOrder: 0, isPrimary: true, meta: { alt: "item alt" } }],
+      lookup,
+    );
+    expect(out[0]!.alt).toBe("item alt");
+  });
+
+  it("hydrate falls back to row alt when meta alt is empty", async () => {
+    const rows = new Map<string, MediaRow>([
+      ["m1", { id: "m1", storage_key: "products/1.jpg", alt: "fallback" }],
+    ]);
+    const lookup = async (ids: string[]) =>
+      new Map(ids.filter((id) => rows.has(id)).map((id) => [id, rows.get(id)!]));
+    const out = await hydrateMediaGallery(
+      [{ mediaId: "m1", sortOrder: 0, isPrimary: false, meta: {} }],
+      lookup,
+    );
+    expect(out[0]!.alt).toBe("fallback");
+  });
+
+  it("hydrate respects custom altKey option", async () => {
+    const rows = new Map<string, MediaRow>([
+      ["m1", { id: "m1", storage_key: "products/1.jpg" }],
+    ]);
+    const lookup = async (ids: string[]) =>
+      new Map(ids.filter((id) => rows.has(id)).map((id) => [id, rows.get(id)!]));
+    const out = await hydrateMediaGallery(
+      [{ mediaId: "m1", sortOrder: 0, isPrimary: false, meta: { alt_en: "english", alt_bg: "bulgarian" } }],
+      lookup,
+      { altKey: "alt_en" },
+    );
+    expect(out[0]!.alt).toBe("english");
+  });
+});
+
+describe("drag-to-reorder (widget commit pattern)", () => {
+  // The widget assigns sortOrder from array position after splice,
+  // rather than using reindex (which re-sorts by old sortOrder).
+  function commitOrder(items: GalleryItem[]): GalleryItem[] {
+    return items.map((it, i) => ({ ...it, sortOrder: i }));
+  }
+
+  it("handles a move-to-front reorder", () => {
+    const items = [
+      { mediaId: "a", sortOrder: 0, isPrimary: true, meta: {} },
+      { mediaId: "b", sortOrder: 1, isPrimary: false, meta: {} },
+      { mediaId: "c", sortOrder: 2, isPrimary: false, meta: {} },
+    ];
+    const next = [...items];
+    const [moved] = next.splice(2, 1);
+    next.splice(0, 0, moved!);
+    const result = commitOrder(next);
+    expect(result.map((i) => i.mediaId)).toEqual(["c", "a", "b"]);
+    expect(result.map((i) => i.sortOrder)).toEqual([0, 1, 2]);
+  });
+
+  it("handles a move-to-end reorder", () => {
+    const items = [
+      { mediaId: "a", sortOrder: 0, isPrimary: true, meta: {} },
+      { mediaId: "b", sortOrder: 1, isPrimary: false, meta: {} },
+      { mediaId: "c", sortOrder: 2, isPrimary: false, meta: {} },
+    ];
+    const next = [...items];
+    const [moved] = next.splice(0, 1);
+    next.splice(2, 0, moved!);
+    const result = commitOrder(next);
+    expect(result.map((i) => i.mediaId)).toEqual(["b", "c", "a"]);
+    expect(result.map((i) => i.sortOrder)).toEqual([0, 1, 2]);
+  });
+
+  it("reindex restores canonical order from stored sortOrder values", () => {
+    // reindex is for the read path: it sorts by sortOrder to reconstruct order from DB
+    const stored = [
+      { mediaId: "b", sortOrder: 1, isPrimary: false, meta: {} },
+      { mediaId: "a", sortOrder: 0, isPrimary: true, meta: {} },
+    ];
+    const result = reindex(stored);
+    expect(result.map((i) => i.mediaId)).toEqual(["a", "b"]);
   });
 });
 
