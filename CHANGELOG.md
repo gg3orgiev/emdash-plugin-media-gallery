@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Set-as-primary button: each gallery image now has a "Set primary" action so the
+  primary flag can be reassigned without removing and re-adding images.
+- Multi-add picker: the media picker stays open after each selection, letting you
+  add multiple images without reopening the modal. It closes automatically when the
+  limit is reached, or when dismissed manually.
+- Inline validation feedback: the widget now shows a warning when below `minItems`
+  and an info message when `maxItems` is reached.
+
 ### Changed
 
 - Updated emdash and @emdash-cms/admin dev dependencies from 0.16.1 to 0.21.0.
@@ -13,10 +23,6 @@ All notable changes to this project are documented here. The format follows
 - `mediaGalleryPlugin()` now returns the proper `PluginDescriptor` type and declares
   `capabilities: ["read:media"]` on the descriptor, aligning with the structured
   `declaredAccess` contract introduced in emdash 0.20.0.
-
-### Planned
-
-- A primary-toggle control in the gallery widget.
 
 ## [0.2.0]
 

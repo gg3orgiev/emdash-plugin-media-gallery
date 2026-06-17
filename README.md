@@ -150,9 +150,9 @@ To report a vulnerability, see [SECURITY.md](./SECURITY.md).
 
 ## Status
 
-In production use. Implemented: gallery and single-image widgets, drag-to-reorder, per-item
-alt-text inputs, search, server-side validation, and storefront hydration. Planned: a
-primary-toggle control in the gallery widget. See [CHANGELOG.md](./CHANGELOG.md).
+In production use. Implemented: gallery and single-image widgets, drag-to-reorder, set-as-primary,
+multi-add picker, per-item alt-text inputs, inline validation feedback, search, server-side
+validation, and storefront hydration. See [CHANGELOG.md](./CHANGELOG.md).
 
 ## Contributing
 

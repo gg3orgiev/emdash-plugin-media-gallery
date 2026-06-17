@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MediaPickerModal } from "@emdash-cms/admin";
 import { type GalleryItem, reindex, resolveOptions } from "../schema.js";
 import { validateGallery } from "../validate.js";
@@ -37,6 +37,12 @@ export default function GalleryField(props: FieldWidgetProps) {
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const atLimit = items.length >= options.maxItems;
+  const belowMin = options.minItems > 0 && items.length < options.minItems;
+
+  // Track whether the picker should stay open after a selection (multi-add mode).
+  const justSelected = useRef(false);
+  const pendingCountRef = useRef(items.length);
+  pendingCountRef.current = items.length;
 
   useEffect(() => {
     const missing = items.filter((it) => !it.storageKey && !urls[it.mediaId]);
@@ -65,12 +71,12 @@ export default function GalleryField(props: FieldWidgetProps) {
   }, [items, urls]);
 
   function commit(next: GalleryItem[]) {
-    // Assign sortOrder from array position (not reindex, which re-sorts by old sortOrder).
     onChange(ensurePrimary(next).map((it, i) => ({ ...it, sortOrder: i })));
   }
 
   function addMedia(picked: MediaPick) {
     if (items.some((it) => it.mediaId === picked.id)) return;
+    justSelected.current = true;
     const url = picked.url ?? (picked.storageKey ? urlFromStorageKey(picked.storageKey) : null);
     if (url) setUrls((u) => ({ ...u, [picked.id]: url }));
     const item: GalleryItem = {
@@ -82,23 +88,39 @@ export default function GalleryField(props: FieldWidgetProps) {
     if (picked.storageKey) item.storageKey = picked.storageKey;
     if (typeof picked.width === "number") item.width = picked.width;
     if (typeof picked.height === "number") item.height = picked.height;
-    commit([...items, item]);
+    const next = [...items, item];
+    commit(next);
+    pendingCountRef.current = next.length;
+    if (next.length >= options.maxItems) setPickerOpen(false);
   }
 
   function removeImage(mediaId: string) {
     commit(items.filter((it) => it.mediaId !== mediaId));
   }
 
+  function setPrimary(mediaId: string) {
+    commit(items.map((it) => ({ ...it, isPrimary: it.mediaId === mediaId })));
+  }
+
   function updateMeta(mediaId: string, key: string, val: string) {
     commit(items.map((it) => it.mediaId === mediaId ? { ...it, meta: { ...it.meta, [key]: val } } : it));
   }
+
+  // Keep the picker open after each selection so the user can add multiple images
+  // without reopening the modal. Close only when the user explicitly dismisses.
+  const handlePickerOpenChange = useCallback((open: boolean) => {
+    if (!open && justSelected.current) {
+      justSelected.current = false;
+      if (pendingCountRef.current < options.maxItems) return;
+    }
+    setPickerOpen(open);
+  }, [options.maxItems]);
 
   // --- Drag-to-reorder (HTML5 Drag API, zero dependencies) ---
 
   const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
     setDragIndex(index);
     e.dataTransfer.effectAllowed = "move";
-    // Needed for Firefox to initiate drag
     e.dataTransfer.setData("text/plain", String(index));
   }, []);
 
@@ -145,6 +167,19 @@ export default function GalleryField(props: FieldWidgetProps) {
         </span>
       </div>
 
+      {belowMin ? (
+        <div style={styles.validation} role="alert">
+          At least {options.minItems} {options.minItems === 1 ? "image is" : "images are"} required
+          ({items.length === 0 ? "none added" : `${items.length} added`}).
+        </div>
+      ) : null}
+
+      {atLimit ? (
+        <div style={styles.validationInfo}>
+          Maximum of {options.maxItems} {options.maxItems === 1 ? "image" : "images"} reached.
+        </div>
+      ) : null}
+
       {items.length === 0 ? (
         <button type="button" style={styles.empty} onClick={() => setPickerOpen(true)}>
           + Add images
@@ -190,14 +225,26 @@ export default function GalleryField(props: FieldWidgetProps) {
                     aria-label={`${field} for image ${shortId(item.mediaId)}`}
                   />
                 ))}
-                <button
-                  type="button"
-                  style={styles.remove}
-                  aria-label={`Remove image ${shortId(item.mediaId)}`}
-                  onClick={() => removeImage(item.mediaId)}
-                >
-                  Remove
-                </button>
+                <div style={styles.cardActions}>
+                  {!item.isPrimary && items.length > 1 ? (
+                    <button
+                      type="button"
+                      style={styles.actionBtn}
+                      aria-label={`Set image ${shortId(item.mediaId)} as primary`}
+                      onClick={() => setPrimary(item.mediaId)}
+                    >
+                      Set primary
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    style={styles.removeBtn}
+                    aria-label={`Remove image ${shortId(item.mediaId)}`}
+                    onClick={() => removeImage(item.mediaId)}
+                  >
+                    Remove
+                  </button>
+                </div>
               </div>
             );
           })}
@@ -220,7 +267,7 @@ export default function GalleryField(props: FieldWidgetProps) {
 
       <MediaPickerModal
         open={pickerOpen}
-        onOpenChange={setPickerOpen}
+        onOpenChange={handlePickerOpenChange}
         onSelect={addMedia}
         localOnly
         mediaKind="image"
@@ -246,6 +293,22 @@ const styles: Record<string, React.CSSProperties> = {
   label: { fontWeight: 600, fontSize: 14 },
   required: { color: "#c0392b" },
   count: { fontSize: 12, opacity: 0.6 },
+  validation: {
+    fontSize: 12,
+    color: "#c0392b",
+    marginBottom: 8,
+    padding: "4px 8px",
+    background: "rgba(192,57,43,0.06)",
+    borderRadius: 3,
+  },
+  validationInfo: {
+    fontSize: 12,
+    color: "#7f8c8d",
+    marginBottom: 8,
+    padding: "4px 8px",
+    background: "rgba(0,0,0,0.03)",
+    borderRadius: 3,
+  },
   grid: { display: "flex", flexWrap: "wrap", gap: 12 },
   card: { width: 120, display: "flex", flexDirection: "column", gap: 4, cursor: "grab", transition: "opacity 150ms" },
   cardWide: { width: 160 },
@@ -299,7 +362,9 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 12,
     boxSizing: "border-box",
   },
-  remove: { fontSize: 12, cursor: "pointer" },
+  cardActions: { display: "flex", gap: 4, flexWrap: "wrap" },
+  actionBtn: { fontSize: 11, cursor: "pointer", padding: "2px 6px", border: "1px solid rgba(0,0,0,0.15)", borderRadius: 3, background: "transparent" },
+  removeBtn: { fontSize: 11, cursor: "pointer", padding: "2px 6px", border: "1px solid rgba(0,0,0,0.15)", borderRadius: 3, background: "transparent", color: "#c0392b" },
   add: {
     width: 120,
     height: 90,
