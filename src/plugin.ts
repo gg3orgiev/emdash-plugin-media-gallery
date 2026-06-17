@@ -7,7 +7,7 @@
  * loaded only inside the admin bundle, keeping this entry server-safe.
  */
 
-import { definePlugin } from "emdash";
+import { definePlugin, type PluginDescriptor } from "emdash";
 import { createGalleryBeforeSave } from "./hook.js";
 import { IMAGE_WIDGET_NAME, PLUGIN_ID, WIDGET_NAME } from "./schema.js";
 
@@ -76,13 +76,14 @@ export function createPlugin(_options?: Record<string, unknown>) {
  * emdash({ plugins: [mediaGalleryPlugin()] });
  * ```
  */
-export function mediaGalleryPlugin(): {
-  id: string;
-  version: string;
-  entrypoint: string;
-  adminEntry: string;
-} {
-  return { id: PLUGIN_ID, version: VERSION, entrypoint: ENTRYPOINT, adminEntry: ADMIN_ENTRY };
+export function mediaGalleryPlugin(): PluginDescriptor {
+  return {
+    id: PLUGIN_ID,
+    version: VERSION,
+    entrypoint: ENTRYPOINT,
+    adminEntry: ADMIN_ENTRY,
+    capabilities: ["read:media"],
+  };
 }
 
 // Re-export the contract so consumers can import types/constants from the root.

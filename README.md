@@ -4,11 +4,11 @@ A multi-image gallery field for [EmDash CMS](https://github.com/emdash-cms/emdas
 
 Attach an ordered list of images to a record, each with per-item metadata (such as alt text) and
 an optional primary flag, using the EmDash media library. A second widget turns the built-in
-single-image field into a searchable picker. Both add a search box for large media libraries,
-which the built-in picker lacks.
+single-image field into a searchable picker. Both can add a custom search box for large media libraries alongside the built-in
+filename search in the media picker.
 
 - License: MIT
-- Requires: EmDash `>= 0.14.0`
+- Requires: EmDash `>= 0.17.0`
 - Runtime dependencies: none (EmDash and React are peer dependencies)
 
 ![Media Gallery widget in the EmDash admin](./media-gallery-overview.png)
@@ -69,7 +69,7 @@ EmDash silently drops the write. See the EmDash docs for schema changes.
 
 ### 3. (Optional) Searchable single-image field
 
-The built-in image picker has no search for the local library. To replace it on an existing
+To add a searchable single-image picker (with an optional custom search endpoint) on an existing
 `image` field, set its `widget` to `media-gallery:image`. The value is stored in EmDash's native
 image shape, so existing selections are preserved:
 
@@ -101,7 +101,7 @@ Cloudflare D1 (one `IN (...)` query). URLs default to the EmDash media proxy con
 | `minItems` | number | 0 | Minimum images required to validate. |
 | `allowedMimeTypes` | string[] | common image types | MIME filter passed to the picker. |
 | `perItemFields` | string[] | `[]` | Per-item metadata keys shown as text inputs (e.g. alt text). |
-| `searchEndpoint` | string | (none) | URL of a host search endpoint; enables the widget search box. |
+| `searchEndpoint` | string | (none) | URL of a host search endpoint; enables an inline search box (complements the picker's built-in filename search). |
 
 ## Stored value (contract)
 
@@ -118,9 +118,10 @@ server hook binds `storageKey` to its media row on save. The shape is versioned 
 
 ## Media search
 
-EmDash exposes no text search for local media, so the search box delegates to a host-provided
-endpoint set via the `searchEndpoint` option. The widget issues `GET <searchEndpoint>?q=<term>`
-and expects:
+Since EmDash 0.17.0, the built-in media picker includes filename search. The `searchEndpoint`
+option adds a separate inline search box that queries a host-provided endpoint, useful for
+full-text or domain-specific search beyond filename matching. The widget issues
+`GET <searchEndpoint>?q=<term>` and expects:
 
 ```json
 { "results": [ { "id": "01H...", "storageKey": "products/a/1.jpeg", "mimeType": "image/jpeg", "width": 800, "height": 800, "filename": "1.jpeg" } ] }

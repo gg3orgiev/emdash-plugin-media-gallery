@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Updated emdash and @emdash-cms/admin dev dependencies from 0.16.1 to 0.21.0.
+- Bumped peer dependency minimum from `>=0.14.0` to `>=0.17.0`.
+- `mediaGalleryPlugin()` now returns the proper `PluginDescriptor` type and declares
+  `capabilities: ["read:media"]` on the descriptor, aligning with the structured
+  `declaredAccess` contract introduced in emdash 0.20.0.
+
 ### Planned
 
 - A primary-toggle control in the gallery widget.
@@ -28,8 +36,7 @@ All notable changes to this project are documented here. The format follows
 
 ### Dependencies
 
-- Dev: emdash 0.16.1, @emdash-cms/admin 0.16.1, react 19.2.7, @types/react 19.2.16,
-  tsup 8.5.1.
+- Dev: emdash 0.16.1, @emdash-cms/admin 0.16.1, react 19.2.7, @types/react 19.2.16, tsup 8.5.1.
 
 ## [0.1.0]
 
