@@ -85,6 +85,8 @@ export function validateGallery(value: unknown, options: GalleryOptions): Valida
     if (isSafeStorageKey(storageKey)) item.storageKey = storageKey;
     if (isNonNegativeInt(width)) item.width = width;
     if (isNonNegativeInt(height)) item.height = height;
+    if (typeof entry.blurhash === "string" && entry.blurhash.length > 0) item.blurhash = entry.blurhash;
+    if (typeof entry.dominantColor === "string" && entry.dominantColor.length > 0) item.dominantColor = entry.dominantColor;
     items.push(item);
   });
 

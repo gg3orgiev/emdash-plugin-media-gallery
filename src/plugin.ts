@@ -83,6 +83,29 @@ export function mediaGalleryPlugin(): PluginDescriptor {
     entrypoint: ENTRYPOINT,
     adminEntry: ADMIN_ENTRY,
     capabilities: ["read:media"],
+    settingsSchema: {
+      searchEndpoint: {
+        type: "url",
+        label: "Media search endpoint",
+        description:
+          "URL of a host-provided media search endpoint. When set, gallery and image widgets show a search box. " +
+          "The endpoint receives GET ?q=<term> and must return { results: [{ id, storageKey?, mimeType?, width?, height?, filename? }] }. " +
+          "Per-field options.searchEndpoint overrides this global setting.",
+        placeholder: "/api/media-search",
+      },
+    },
+    fieldWidgets: [
+      {
+        name: WIDGET_NAME,
+        label: "Media Gallery",
+        fieldTypes: ["json"],
+      },
+      {
+        name: IMAGE_WIDGET_NAME,
+        label: "Image (searchable)",
+        fieldTypes: ["image"],
+      },
+    ],
   };
 }
 

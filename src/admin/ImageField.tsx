@@ -10,7 +10,7 @@
 import { useState } from "react";
 import { MediaPickerModal } from "@emdash-cms/admin";
 import { resolveOptions } from "../schema.js";
-import { SearchPicker, urlFromStorageKey, type MediaSearchResult } from "./shared.js";
+import { SearchPicker, urlFromStorageKey, useSearchEndpoint, type MediaSearchResult } from "./shared.js";
 import type { FieldWidgetProps } from "./GalleryField.js";
 
 /** EmDash's native image-field value (matched exactly for compatibility). */
@@ -31,11 +31,14 @@ interface MediaPick {
   width?: number;
   height?: number;
   url?: string;
+  blurhash?: string;
+  dominantColor?: string;
 }
 
 export default function ImageField(props: FieldWidgetProps) {
   const { value, onChange, label, id, required } = props;
   const options = resolveOptions(props.options);
+  const searchEndpoint = useSearchEndpoint(options.searchEndpoint);
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const current = parseValue(value);
@@ -89,7 +92,7 @@ export default function ImageField(props: FieldWidgetProps) {
       )}
 
       <SearchPicker
-        endpoint={options.searchEndpoint}
+        endpoint={searchEndpoint}
         onPick={(r: MediaSearchResult) => select(r)}
         placeholder="Search media by name…"
       />

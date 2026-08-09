@@ -21,6 +21,8 @@ export interface MediaRow {
   height?: number | null;
   alt?: string | null;
   status?: string | null;
+  blurhash?: string | null;
+  dominant_color?: string | null;
 }
 
 /** Resolve a set of mediaIds to their rows. Missing ids are simply absent. */
@@ -38,6 +40,10 @@ export interface HydratedImage {
   isPrimary: boolean;
   sortOrder: number;
   meta: Record<string, string>;
+  /** LQIP blurhash placeholder for progressive loading. */
+  blurhash: string | undefined;
+  /** LQIP dominant-color placeholder as a CSS color. */
+  dominantColor: string | undefined;
 }
 
 export interface HydrateOptions {
@@ -100,6 +106,8 @@ export async function hydrateMediaGallery(
       isPrimary: item.isPrimary,
       sortOrder: item.sortOrder,
       meta: item.meta,
+      blurhash: item.blurhash ?? row?.blurhash ?? undefined,
+      dominantColor: item.dominantColor ?? row?.dominant_color ?? undefined,
     });
   }
   return out;
@@ -130,7 +138,7 @@ export function d1MediaLookup(db: D1Like): MediaLookup {
     if (ids.length === 0) return map;
     const placeholders = ids.map(() => "?").join(",");
     const sql =
-      `SELECT id, storage_key, mime_type, width, height, alt, status ` +
+      `SELECT id, storage_key, mime_type, width, height, alt, status, blurhash, dominant_color ` +
       `FROM media WHERE id IN (${placeholders})`;
     const { results } = await db.prepare(sql).bind(...ids).all<MediaRow>();
     for (const row of results ?? []) map.set(row.id, row);

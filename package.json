@@ -58,8 +58,8 @@
     "prepack": "npm run build"
   },
   "peerDependencies": {
-    "@emdash-cms/admin": ">=0.17.0",
-    "emdash": ">=0.17.0",
+    "@emdash-cms/admin": ">=0.30.0",
+    "emdash": ">=0.30.0",
     "react": "^18 || ^19"
   },
   "peerDependenciesMeta": {
@@ -71,9 +71,9 @@
     }
   },
   "devDependencies": {
-    "@emdash-cms/admin": "^0.21.0",
+    "@emdash-cms/admin": "^0.32.0",
     "@types/react": "^19.2.16",
-    "emdash": "^0.21.0",
+    "emdash": "^0.32.0",
     "react": "^19.2.7",
     "tsup": "^8.5.1",
     "typescript": "^5.7.2",

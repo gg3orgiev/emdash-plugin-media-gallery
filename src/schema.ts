@@ -47,6 +47,10 @@ export interface GalleryItem {
   storageKey?: string;
   width?: number;
   height?: number;
+  /** LQIP blurhash placeholder for progressive loading (emdash ≥ 0.25.1). */
+  blurhash?: string;
+  /** LQIP dominant-color placeholder as a CSS color (emdash ≥ 0.25.1). */
+  dominantColor?: string;
 }
 
 /** Options an author sets on the field definition (`options` in seed.json). */

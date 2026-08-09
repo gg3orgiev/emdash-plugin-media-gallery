@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { MediaPickerModal } from "@emdash-cms/admin";
 import { type GalleryItem, reindex, resolveOptions } from "../schema.js";
 import { validateGallery } from "../validate.js";
-import { SearchPicker, urlFromStorageKey } from "./shared.js";
+import { SearchPicker, urlFromStorageKey, useSearchEndpoint } from "./shared.js";
 
 interface MediaPick {
   id: string;
@@ -10,6 +10,8 @@ interface MediaPick {
   width?: number;
   height?: number;
   url?: string;
+  blurhash?: string;
+  dominantColor?: string;
 }
 
 export interface FieldWidgetProps {
@@ -25,6 +27,7 @@ export interface FieldWidgetProps {
 export default function GalleryField(props: FieldWidgetProps) {
   const { value, onChange, label, id, required } = props;
   const options = useMemo(() => resolveOptions(props.options), [props.options]);
+  const searchEndpoint = useSearchEndpoint(options.searchEndpoint);
 
   const items = useMemo<GalleryItem[]>(
     () => reindex(validateGallery(value, { ...options, maxItems: Number.MAX_SAFE_INTEGER, minItems: 0 }).items),
@@ -39,10 +42,6 @@ export default function GalleryField(props: FieldWidgetProps) {
   const atLimit = items.length >= options.maxItems;
   const belowMin = options.minItems > 0 && items.length < options.minItems;
 
-  // Track whether the picker should stay open after a selection (multi-add mode).
-  const justSelected = useRef(false);
-  const pendingCountRef = useRef(items.length);
-  pendingCountRef.current = items.length;
 
   useEffect(() => {
     const missing = items.filter((it) => !it.storageKey && !urls[it.mediaId]);
@@ -74,24 +73,45 @@ export default function GalleryField(props: FieldWidgetProps) {
     onChange(ensurePrimary(next).map((it, i) => ({ ...it, sortOrder: i })));
   }
 
-  function addMedia(picked: MediaPick) {
-    if (items.some((it) => it.mediaId === picked.id)) return;
-    justSelected.current = true;
-    const url = picked.url ?? (picked.storageKey ? urlFromStorageKey(picked.storageKey) : null);
-    if (url) setUrls((u) => ({ ...u, [picked.id]: url }));
+  function toGalleryItem(picked: MediaPick, sortOrder: number): GalleryItem {
     const item: GalleryItem = {
       mediaId: picked.id,
-      sortOrder: items.length,
-      isPrimary: items.length === 0,
+      sortOrder,
+      isPrimary: false,
       meta: {},
     };
     if (picked.storageKey) item.storageKey = picked.storageKey;
     if (typeof picked.width === "number") item.width = picked.width;
     if (typeof picked.height === "number") item.height = picked.height;
-    const next = [...items, item];
+    if (picked.blurhash) item.blurhash = picked.blurhash;
+    if (picked.dominantColor) item.dominantColor = picked.dominantColor;
+    return item;
+  }
+
+  function addMedia(picked: MediaPick) {
+    addMediaMany([picked]);
+  }
+
+  function addMediaMany(pickedItems: MediaPick[]) {
+    const newUrls: Record<string, string> = {};
+    const newItems: GalleryItem[] = [];
+    let offset = items.length;
+
+    for (const picked of pickedItems) {
+      if (items.some((it) => it.mediaId === picked.id)) continue;
+      if (newItems.some((it) => it.mediaId === picked.id)) continue;
+      if (offset >= options.maxItems) break;
+      const url = picked.url ?? (picked.storageKey ? urlFromStorageKey(picked.storageKey) : null);
+      if (url) newUrls[picked.id] = url;
+      newItems.push(toGalleryItem(picked, offset));
+      offset++;
+    }
+
+    if (newItems.length === 0) return;
+    if (Object.keys(newUrls).length > 0) setUrls((u) => ({ ...u, ...newUrls }));
+    const next = [...items, ...newItems];
     commit(next);
-    pendingCountRef.current = next.length;
-    if (next.length >= options.maxItems) setPickerOpen(false);
+    setPickerOpen(false);
   }
 
   function removeImage(mediaId: string) {
@@ -106,15 +126,9 @@ export default function GalleryField(props: FieldWidgetProps) {
     commit(items.map((it) => it.mediaId === mediaId ? { ...it, meta: { ...it.meta, [key]: val } } : it));
   }
 
-  // Keep the picker open after each selection so the user can add multiple images
-  // without reopening the modal. Close only when the user explicitly dismisses.
   const handlePickerOpenChange = useCallback((open: boolean) => {
-    if (!open && justSelected.current) {
-      justSelected.current = false;
-      if (pendingCountRef.current < options.maxItems) return;
-    }
     setPickerOpen(open);
-  }, [options.maxItems]);
+  }, []);
 
   // --- Drag-to-reorder (HTML5 Drag API, zero dependencies) ---
 
@@ -259,7 +273,7 @@ export default function GalleryField(props: FieldWidgetProps) {
 
       {!atLimit ? (
         <SearchPicker
-          endpoint={options.searchEndpoint}
+          endpoint={searchEndpoint}
           exclude={(mid) => items.some((it) => it.mediaId === mid)}
           onPick={addMedia}
         />
@@ -268,7 +282,9 @@ export default function GalleryField(props: FieldWidgetProps) {
       <MediaPickerModal
         open={pickerOpen}
         onOpenChange={handlePickerOpenChange}
+        multiple
         onSelect={addMedia}
+        onSelectMany={addMediaMany}
         localOnly
         mediaKind="image"
         mimeTypeFilters={options.allowedMimeTypes}

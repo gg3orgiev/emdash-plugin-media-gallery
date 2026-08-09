@@ -3,7 +3,9 @@
  * reusable search-picker UI used by both the gallery and single-image widgets.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { fetchPluginSettings } from "@emdash-cms/admin";
+import { PLUGIN_ID } from "../schema.js";
 
 /** Build the public media proxy URL EmDash serves from a storage key. */
 export function urlFromStorageKey(storageKey: string): string {
@@ -18,6 +20,28 @@ export interface MediaSearchResult {
   width?: number;
   height?: number;
   filename?: string;
+}
+
+/**
+ * Resolve the search endpoint: per-field `options.searchEndpoint` wins;
+ * otherwise fall back to the global plugin setting (admin settings UI).
+ */
+export function useSearchEndpoint(fieldEndpoint: string | undefined): string | undefined {
+  const [globalEndpoint, setGlobalEndpoint] = useState<string | undefined>(undefined);
+  const fetched = useRef(false);
+
+  useEffect(() => {
+    if (fieldEndpoint || fetched.current) return;
+    fetched.current = true;
+    fetchPluginSettings(PLUGIN_ID)
+      .then((res) => {
+        const v = (res as { values?: Record<string, unknown> }).values?.searchEndpoint;
+        if (typeof v === "string" && v !== "") setGlobalEndpoint(v);
+      })
+      .catch(() => {});
+  }, [fieldEndpoint]);
+
+  return fieldEndpoint || globalEndpoint;
 }
 
 /** Debounced media search against a host-provided endpoint. Inert when no endpoint. */
