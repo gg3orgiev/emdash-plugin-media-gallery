@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0]
+
 ### Added
 
 - Set-as-primary button: each gallery image now has a "Set primary" action so the
@@ -15,11 +17,13 @@ All notable changes to this project are documented here. The format follows
   limit is reached, or when dismissed manually.
 - Inline validation feedback: the widget now shows a warning when below `minItems`
   and an info message when `maxItems` is reached.
+- GitHub Actions workflow for automated npm publishing on release.
 
 ### Changed
 
-- Updated emdash and @emdash-cms/admin dev dependencies from 0.16.1 to 0.21.0.
-- Bumped peer dependency minimum from `>=0.14.0` to `>=0.17.0`.
+- Refactored multi-select picker to use out-of-band (OOB) rendering.
+- Updated emdash and @emdash-cms/admin dev dependencies to 0.32.0.
+- Bumped peer dependency minimum from `>=0.14.0` to `>=0.30.0`.
 - `mediaGalleryPlugin()` now returns the proper `PluginDescriptor` type and declares
   `capabilities: ["read:media"]` on the descriptor, aligning with the structured
   `declaredAccess` contract introduced in emdash 0.20.0.

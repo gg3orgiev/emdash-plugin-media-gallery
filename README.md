@@ -8,7 +8,7 @@ single-image field into a searchable picker. Both can add a custom search box fo
 filename search in the media picker.
 
 - License: MIT
-- Requires: EmDash `>= 0.17.0`
+- Requires: EmDash `>= 0.30.0`
 - Runtime dependencies: none (EmDash and React are peer dependencies)
 
 ![Media Gallery widget in the EmDash admin](./media-gallery-overview.png)
